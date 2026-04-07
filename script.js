@@ -1,10 +1,6 @@
 // Configuration
 const CONFIG = {
-    // Ganti dengan Web App URL dari Google Apps Script
     SPREADSHEET_URL: 'https://script.google.com/macros/s/AKfycbwg3YoRsKcCEAnTjTMQAOHoFwq3AlX8fa_ozyEyYWz7Noi7lPsDqUyjjBNwlSyilqAmHw/exec',
-    // Ganti dengan nomor WhatsApp toko (format: 62xxx tanpa +)
-    WHATSAPP_NUMBER: '6281330752685',
-    // Set true untuk menggunakan data dari spreadsheet, false untuk demo dengan gambar lokal
     USE_SPREADSHEET: true
 };
 
@@ -285,9 +281,8 @@ async function checkout() {
         return;
     }
     
-    // Minta data customer
-    const customerName = prompt('Nama Anda:') || 'Guest';
-    const customerPhone = prompt('Nomor HP Anda:') || '';
+    const customerName = prompt('Nama Anda:');
+    const customerPhone = prompt('Nomor HP Anda:');
     
     if (!customerName || !customerPhone) {
         alert('Mohon isi nama dan nomor HP!');
@@ -296,59 +291,17 @@ async function checkout() {
     
     const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
     
-    // Format pesan untuk WhatsApp
-    let message = '*PESANAN BARU TOKO SEMBAKO*\n';
-    message += '================================\n\n';
-    message += `Nama: ${customerName}\n`;
-    message += `No HP: ${customerPhone}\n\n`;
-    
-    cart.forEach((item, index) => {
-        message += `${index + 1}. ${item.nama}\n`;
-        message += `   Jumlah: ${item.quantity}\n`;
-        message += `   Harga: Rp ${formatPrice(item.harga)}\n`;
-        message += `   Subtotal: Rp ${formatPrice(item.harga * item.quantity)}\n\n`;
-    });
-    
-    message += '================================\n';
-    message += `*TOTAL: Rp ${formatPrice(total)}*\n\n`;
-    message += 'Mohon konfirmasi pesanan ini. Terima kasih!';
-    
-    // Simpan pesanan ke spreadsheet
     try {
-        await saveOrderToSpreadsheet({
-            customerName,
-            customerPhone,
-            items: cart,
-            total
-        });
-        console.log('Order saved to spreadsheet');
-    } catch (error) {
-        console.error('Failed to save order:', error);
-        // Lanjut ke WhatsApp meskipun gagal simpan
-    }
-    
-    // Buat URL WhatsApp
-    const whatsappUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-    
-    console.log('WhatsApp URL:', whatsappUrl);
-    
-    // Buka WhatsApp
-    const newWindow = window.open(whatsappUrl, '_blank');
-    
-    // Jika popup diblokir, coba dengan window.location
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        console.log('Popup blocked, using window.location');
-        window.location.href = whatsappUrl;
-    }
-    
-    // Kosongkan keranjang
-    setTimeout(() => {
+        await saveOrderToSpreadsheet({ customerName, customerPhone, items: cart, total });
         cart = [];
         updateCart();
         saveCartToStorage();
         closeCart();
-        showNotification('Pesanan dikirim ke WhatsApp!');
-    }, 1000);
+        showSuccessModal(customerName, total);
+    } catch (error) {
+        console.error('Failed to save order:', error);
+        alert('Gagal menyimpan pesanan. Coba lagi.');
+    }
 }
 
 // Save order to spreadsheet
@@ -398,4 +351,25 @@ function showNotification(message) {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+function showSuccessModal(customerName, total) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-md w-full p-8 text-center">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check-circle text-5xl text-green-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Pesanan Berhasil!</h2>
+            <p class="text-gray-600 mb-1">Terima kasih, <strong>${customerName}</strong>!</p>
+            <p class="text-gray-600 mb-4">Pesanan Anda senilai <strong class="text-green-600">Rp ${formatPrice(total)}</strong> telah diterima.</p>
+            <p class="text-sm text-gray-500 mb-6">Kami akan segera memproses pesanan Anda.</p>
+            <button onclick="this.closest('.fixed').remove()" 
+                class="bg-green-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-700 transition">
+                Tutup
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
