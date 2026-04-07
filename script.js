@@ -280,28 +280,8 @@ async function checkout() {
         alert('Keranjang belanja kosong!');
         return;
     }
-    
-    const customerName = prompt('Nama Anda:');
-    const customerPhone = prompt('Nomor HP Anda:');
-    
-    if (!customerName || !customerPhone) {
-        alert('Mohon isi nama dan nomor HP!');
-        return;
-    }
-    
-    const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-    
-    try {
-        await saveOrderToSpreadsheet({ customerName, customerPhone, items: cart, total });
-        cart = [];
-        updateCart();
-        saveCartToStorage();
-        closeCart();
-        showSuccessModal(customerName, total);
-    } catch (error) {
-        console.error('Failed to save order:', error);
-        alert('Gagal menyimpan pesanan. Coba lagi.');
-    }
+    closeCart();
+    showCheckoutForm();
 }
 
 // Save order to spreadsheet
@@ -351,6 +331,88 @@ function showNotification(message) {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+function showCheckoutForm() {
+    const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+    const modal = document.createElement('div');
+    modal.id = 'checkoutFormModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold">Konfirmasi Pesanan</h2>
+                <button onclick="document.getElementById('checkoutFormModal').remove(); document.getElementById('cartModal').classList.remove('hidden')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto text-sm">
+                ${cart.map(item => `
+                    <div class="flex justify-between py-1">
+                        <span>${item.nama} x${item.quantity}</span>
+                        <span class="font-semibold">Rp ${formatPrice(item.harga * item.quantity)}</span>
+                    </div>
+                `).join('')}
+                <div class="border-t mt-2 pt-2 flex justify-between font-bold text-green-600">
+                    <span>Total</span>
+                    <span>Rp ${formatPrice(total)}</span>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Nama Lengkap</label>
+                    <input id="inputName" type="text" placeholder="Masukkan nama Anda" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Nomor HP</label>
+                    <input id="inputPhone" type="tel" placeholder="Contoh: 08123456789" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Alamat Pengiriman</label>
+                    <textarea id="inputAddress" rows="2" placeholder="Masukkan alamat lengkap" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"></textarea>
+                </div>
+            </div>
+            <button id="submitOrderBtn" onclick="submitOrder()" 
+                class="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">
+                <i class="fas fa-check-circle mr-2"></i>Konfirmasi Pesanan
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function submitOrder() {
+    const customerName = document.getElementById('inputName').value.trim();
+    const customerPhone = document.getElementById('inputPhone').value.trim();
+    const customerAddress = document.getElementById('inputAddress').value.trim();
+
+    if (!customerName || !customerPhone || !customerAddress) {
+        alert('Mohon isi semua data!');
+        return;
+    }
+
+    const btn = document.getElementById('submitOrderBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...';
+
+    const total = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+
+    try {
+        await saveOrderToSpreadsheet({ customerName, customerPhone, customerAddress, items: cart, total });
+        document.getElementById('checkoutFormModal').remove();
+        cart = [];
+        updateCart();
+        saveCartToStorage();
+        showSuccessModal(customerName, total);
+    } catch (error) {
+        console.error('Failed to save order:', error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Konfirmasi Pesanan';
+        alert('Gagal menyimpan pesanan. Coba lagi.');
+    }
 }
 
 function showSuccessModal(customerName, total) {
