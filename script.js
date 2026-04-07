@@ -100,17 +100,18 @@ function getDemoData() {
 
 // Parse data from Google Sheets
 function parseSheetData(data) {
-    // Format data dari Google Sheets
-    // Asumsi: kolom [ID, Nama, Kategori, Harga, Stok, Gambar URL]
     const rows = data.values.slice(1); // Skip header
-    return rows.map(row => ({
-        id: parseInt(row[0]),
-        nama: row[1],
-        kategori: row[2].toLowerCase(),
-        harga: parseInt(row[3]),
-        stok: parseInt(row[4]),
-        gambar: row[5] || 'https://via.placeholder.com/300x200?text=Produk'
-    }));
+    return rows
+        .filter(row => row[0] && row[1] && row[2] && row[3] && row[4]) // Skip baris kosong
+        .map(row => ({
+            id: parseInt(row[0]),
+            nama: row[1].toString().trim(),
+            kategori: row[2].toString().toLowerCase().trim(),
+            harga: parseInt(row[3]),
+            stok: parseInt(row[4]),
+            gambar: row[5] ? row[5].toString().trim() : 'https://via.placeholder.com/300x200?text=Produk'
+        }))
+        .filter(p => !isNaN(p.id) && !isNaN(p.harga) && !isNaN(p.stok)); // Buang data invalid
 }
 
 // Display products
