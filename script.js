@@ -1,6 +1,7 @@
 // Configuration
 const CONFIG = {
     SPREADSHEET_URL: 'https://script.google.com/macros/s/AKfycbwg3YoRsKcCEAnTjTMQAOHoFwq3AlX8fa_ozyEyYWz7Noi7lPsDqUyjjBNwlSyilqAmHw/exec',
+    WHATSAPP_NUMBER: '6281330752685',
     USE_SPREADSHEET: true
 };
 
@@ -403,9 +404,28 @@ async function submitOrder() {
     try {
         await saveOrderToSpreadsheet({ customerName, customerPhone, customerAddress, items: cart, total });
         document.getElementById('checkoutFormModal').remove();
+
+        // Format pesan WhatsApp
+        let message = '*PESANAN BARU TOKO SEMBAKO*\n';
+        message += '================================\n\n';
+        message += `Nama: ${customerName}\n`;
+        message += `No HP: ${customerPhone}\n`;
+        message += `Alamat: ${customerAddress}\n\n`;
+        cart.forEach((item, index) => {
+            message += `${index + 1}. ${item.nama} x${item.quantity} = Rp ${formatPrice(item.harga * item.quantity)}\n`;
+        });
+        message += `\n================================\n`;
+        message += `*TOTAL: Rp ${formatPrice(total)}*\n\n`;
+        message += 'Mohon konfirmasi pesanan ini. Terima kasih!';
+
         cart = [];
         updateCart();
         saveCartToStorage();
+
+        // Buka WhatsApp
+        const waUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+
         showSuccessModal(customerName, total);
     } catch (error) {
         console.error('Failed to save order:', error);
